@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import dns from 'dns';
 
 export const dbState = {
   isConnected: false,
@@ -11,11 +12,18 @@ export const connectDB = async () => {
   const uri = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/collabboard';
   dbState.uri = uri.replace(/\/\/.*@/, '//***:***@'); // mask credentials if present
 
+  // Ensure robust DNS resolution for Atlas SRV records on Windows
+  if (uri.startsWith('mongodb+srv://')) {
+    try {
+      dns.setServers(['8.8.8.8', '1.1.1.1']);
+    } catch (_) {}
+  }
+
   try {
     // Attempt connection with a short timeout so app startup is not blocked if Mongo is offline
     await mongoose.connect(uri, {
-      serverSelectionTimeoutMS: 3000,
-      connectTimeoutMS: 3000
+      serverSelectionTimeoutMS: 8000,
+      connectTimeoutMS: 8000
     });
 
     dbState.isConnected = true;

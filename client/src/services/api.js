@@ -41,6 +41,57 @@ export async function saveBoardApi(roomId, payload) {
   return data;
 }
 
+// Real-Time HTTP Synchronization APIs
+export async function syncBoardApi(roomId, payload) {
+  try {
+    const res = await fetch(`${API_BASE}/api/boards/${roomId}/sync`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    return await res.json();
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+}
+
+export async function addBoardOperationApi(roomId, element) {
+  try {
+    const res = await fetch(`${API_BASE}/api/boards/${roomId}/operation`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ element })
+    });
+    return await res.json();
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+}
+
+export async function undoBoardOperationApi(roomId) {
+  try {
+    const res = await fetch(`${API_BASE}/api/boards/${roomId}/undo`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    return await res.json();
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+}
+
+export async function clearBoardElementsApi(roomId) {
+  try {
+    const res = await fetch(`${API_BASE}/api/boards/${roomId}/clear`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    return await res.json();
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+}
+
 // User Authentication APIs
 export async function registerApi(payload) {
   const res = await fetch(`${API_BASE}/api/auth/register`, {

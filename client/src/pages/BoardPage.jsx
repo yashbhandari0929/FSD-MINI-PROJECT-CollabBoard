@@ -131,10 +131,15 @@ export default function BoardPage() {
   // Local drawing element committed
   const handleCommitElement = useCallback(
     (newElement) => {
-      addElement(newElement);
-      emitDrawOperation(newElement);
+      const elementWithAuthor = {
+        ...newElement,
+        userName: userName || 'Anonymous',
+        userId: loggedInUser?.id || localStorage.getItem('collab_client_id') || 'guest'
+      };
+      addElement(elementWithAuthor);
+      emitDrawOperation(elementWithAuthor);
     },
-    [addElement, emitDrawOperation]
+    [addElement, emitDrawOperation, userName, loggedInUser]
   );
 
   // Canvas interaction hook

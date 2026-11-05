@@ -89,6 +89,60 @@ export function drawElement(ctx, elem, isPreview = false, currentBg = LIGHT_BG) 
       break;
   }
 
+  // Draw subtle author attribution tag for collaborative drawing
+  if (elem.userName && !isPreview && elem.type !== 'eraser') {
+    drawAuthorTag(ctx, elem);
+  }
+
+  ctx.restore();
+}
+
+/**
+ * Draws an author attribution tag indicating who drew the element
+ */
+function drawAuthorTag(ctx, elem) {
+  if (!elem.userName) return;
+
+  let px = null;
+  let py = null;
+
+  if (elem.points && elem.points.length > 0) {
+    px = elem.points[0].x;
+    py = elem.points[0].y;
+  } else if (elem.startX !== undefined) {
+    px = elem.startX;
+    py = elem.startY;
+  } else if (elem.x !== undefined) {
+    px = elem.x;
+    py = elem.y;
+  }
+
+  if (px === null || py === null) return;
+
+  ctx.save();
+  ctx.font = '600 10px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+  const label = elem.userName;
+  const metrics = ctx.measureText(label);
+  const tagW = metrics.width + 10;
+  const tagH = 14;
+  const tagX = Math.max(px, 2);
+  const tagY = Math.max(py - tagH - 4, 2);
+
+  // Background tag
+  ctx.fillStyle = elem.color || '#4f46e5';
+  ctx.globalAlpha = 0.85;
+  ctx.beginPath();
+  if (ctx.roundRect) {
+    ctx.roundRect(tagX, tagY, tagW, tagH, 3);
+  } else {
+    ctx.rect(tagX, tagY, tagW, tagH);
+  }
+  ctx.fill();
+
+  // Name text
+  ctx.fillStyle = '#ffffff';
+  ctx.globalAlpha = 1.0;
+  ctx.fillText(label, tagX + 5, tagY + 10.5);
   ctx.restore();
 }
 

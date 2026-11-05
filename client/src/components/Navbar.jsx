@@ -49,15 +49,16 @@ export default function Navbar({
   const renderConnectionBadge = () => {
     switch (connectionStatus) {
       case 'connected':
+      case 'cloud-live':
         return (
-          <span className="badge badge-success" title="Real-time WebSocket connected">
+          <span className="badge badge-success" title="Real-time Collaborative Sync Active (Live Multi-User)">
             <span className="pulse-dot online" />
-            <span>Live</span>
+            <span>Live Sync</span>
           </span>
         );
       case 'connecting':
         return (
-          <span className="badge badge-warning" title="Connecting to server...">
+          <span className="badge badge-warning" title="Connecting to collaboration session...">
             <Loader2 size={12} className="animate-spin" />
             <span>Connecting</span>
           </span>

@@ -5,6 +5,193 @@ import { validateRoomId, sanitizeUserName } from '../utils/validation.js';
 // Resilient in-memory fallback store when MongoDB is not connected
 export const inMemoryBoards = new Map();
 
+// Active presence tracker: roomId -> Map<userId, { userId, userName, color, lastSeen }>
+const activeRoomUsers = new Map();
+const PRESENCE_TIMEOUT = 10000; // 10 seconds
+
+function getActiveUsers(roomId) {
+  const userMap = activeRoomUsers.get(roomId);
+  if (!userMap) return [];
+  const now = Date.now();
+  for (const [uid, user] of userMap.entries()) {
+    if (now - user.lastSeen > PRESENCE_TIMEOUT) {
+      userMap.delete(uid);
+    }
+  }
+  return Array.from(userMap.values());
+}
+
+/**
+ * Synchronize board state and update active user presence (HTTP real-time fallback)
+ */
+export const syncBoard = async (req, res, next) => {
+  try {
+    const validRoomId = validateRoomId(req.params.id);
+    if (!validRoomId) {
+      return res.status(400).json({ success: false, error: 'Invalid Room ID.' });
+    }
+
+    const { userId, userName, color } = req.body || {};
+
+    if (userId && userName) {
+      if (!activeRoomUsers.has(validRoomId)) {
+        activeRoomUsers.set(validRoomId, new Map());
+      }
+      activeRoomUsers.get(validRoomId).set(userId, {
+        userId,
+        userName: sanitizeUserName(userName),
+        color: color || '#4f46e5',
+        lastSeen: Date.now()
+      });
+    }
+
+    const activeUsers = getActiveUsers(validRoomId);
+
+    if (isDbConnected()) {
+      let board = await Whiteboard.findOne({ roomId: validRoomId });
+      if (!board) {
+        board = await Whiteboard.create({
+          roomId: validRoomId,
+          title: `Board ${validRoomId}`,
+          elements: []
+        });
+      }
+      return res.status(200).json({
+        success: true,
+        users: activeUsers,
+        elements: board.elements || [],
+        version: board.version || (board.elements ? board.elements.length : 0)
+      });
+    } else {
+      if (!inMemoryBoards.has(validRoomId)) {
+        inMemoryBoards.set(validRoomId, {
+          roomId: validRoomId,
+          title: `Board ${validRoomId}`,
+          elements: [],
+          version: 1,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        });
+      }
+      const board = inMemoryBoards.get(validRoomId);
+      return res.status(200).json({
+        success: true,
+        users: activeUsers,
+        elements: board.elements || [],
+        version: board.version || (board.elements ? board.elements.length : 0)
+      });
+    }
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * Push an element to the board
+ */
+export const addOperation = async (req, res, next) => {
+  try {
+    const validRoomId = validateRoomId(req.params.id);
+    if (!validRoomId) {
+      return res.status(400).json({ success: false, error: 'Invalid Room ID.' });
+    }
+
+    const { element } = req.body;
+    if (!element || !element.type) {
+      return res.status(400).json({ success: false, error: 'Invalid element payload.' });
+    }
+
+    if (isDbConnected()) {
+      await Whiteboard.findOneAndUpdate(
+        { roomId: validRoomId },
+        { 
+          $push: { elements: element }, 
+          $inc: { version: 1 },
+          $set: { updatedAt: new Date() }
+        },
+        { upsert: true, new: true }
+      );
+    }
+
+    if (!inMemoryBoards.has(validRoomId)) {
+      inMemoryBoards.set(validRoomId, {
+        roomId: validRoomId,
+        elements: [],
+        version: 1
+      });
+    }
+    const mem = inMemoryBoards.get(validRoomId);
+    mem.elements.push(element);
+    mem.version = (mem.version || 0) + 1;
+
+    return res.status(200).json({ success: true });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * Undo last operation
+ */
+export const undoOperation = async (req, res, next) => {
+  try {
+    const validRoomId = validateRoomId(req.params.id);
+    if (!validRoomId) return res.status(400).json({ success: false, error: 'Invalid Room ID.' });
+
+    let updatedElements = [];
+    if (isDbConnected()) {
+      const board = await Whiteboard.findOne({ roomId: validRoomId });
+      if (board && board.elements.length > 0) {
+        board.elements.pop();
+        board.version = (board.version || 0) + 1;
+        await board.save();
+        updatedElements = board.elements;
+      }
+    }
+
+    if (inMemoryBoards.has(validRoomId)) {
+      const mem = inMemoryBoards.get(validRoomId);
+      if (mem.elements.length > 0) {
+        mem.elements.pop();
+        mem.version = (mem.version || 0) + 1;
+        updatedElements = mem.elements;
+      }
+    }
+
+    return res.status(200).json({ success: true, elements: updatedElements });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * Clear all operations
+ */
+export const clearBoardElements = async (req, res, next) => {
+  try {
+    const validRoomId = validateRoomId(req.params.id);
+    if (!validRoomId) return res.status(400).json({ success: false, error: 'Invalid Room ID.' });
+
+    if (isDbConnected()) {
+      await Whiteboard.findOneAndUpdate(
+        { roomId: validRoomId },
+        { $set: { elements: [] }, $inc: { version: 1 } },
+        { upsert: true }
+      );
+    }
+
+    if (inMemoryBoards.has(validRoomId)) {
+      const mem = inMemoryBoards.get(validRoomId);
+      mem.elements = [];
+      mem.version = (mem.version || 0) + 1;
+    }
+
+    return res.status(200).json({ success: true });
+  } catch (err) {
+    next(err);
+  }
+};
+
 /**
  * Returns server and database health status
  */

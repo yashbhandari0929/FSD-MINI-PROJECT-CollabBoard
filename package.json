@@ -1,0 +1,21 @@
+{
+  "name": "collabboard-mern",
+  "version": "1.0.0",
+  "description": "Real-Time Collaborative Whiteboard - A MERN Stack Web App with Socket.IO for Live Multi-User Drawing",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently -k -n \"SERVER,CLIENT\" -c \"magenta,cyan\" \"npm run server\" \"npm run client\"",
+    "server": "npm --prefix server run dev",
+    "client": "npm --prefix client run dev",
+    "install-all": "npm install && npm --prefix server install && npm --prefix client install",
+    "start": "npm --prefix server start",
+    "build": "npm --prefix client run build",
+    "test": "npm --prefix server test",
+    "tunnel": "npx cloudflared tunnel --url http://localhost:5005"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "author": "FSD Project Team",
+  "license": "MIT"
+}

@@ -1,18 +1,41 @@
 import { io } from 'socket.io-client';
 
-const SOCKET_URL =
-  import.meta.env.VITE_SOCKET_URL ||
-  (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5005');
+export function getSocketUrl() {
+  if (typeof window === 'undefined') return 'http://localhost:5005';
+
+  if (import.meta.env.VITE_SOCKET_URL) {
+    return import.meta.env.VITE_SOCKET_URL;
+  }
+
+  const savedUrl = localStorage.getItem('collab_socket_url');
+  if (savedUrl) return savedUrl;
+
+  const hostname = window.location.hostname;
+  if (
+    hostname === 'localhost' ||
+    hostname === '127.0.0.1' ||
+    hostname.startsWith('192.168.') ||
+    hostname.startsWith('10.')
+  ) {
+    return window.location.origin;
+  }
+
+  // Vercel serverless functions do not host persistent WebSockets
+  return null;
+}
 
 let socket = null;
 
 export function getSocket() {
+  const url = getSocketUrl();
+  if (!url) return null;
+
   if (!socket) {
-    socket = io(SOCKET_URL, {
+    socket = io(url, {
       autoConnect: false,
       reconnection: true,
-      reconnectionAttempts: 10,
-      reconnectionDelay: 1000,
+      reconnectionAttempts: 3,
+      reconnectionDelay: 2000,
       transports: ['websocket', 'polling']
     });
   }
@@ -21,7 +44,7 @@ export function getSocket() {
 
 export function connectSocket() {
   const s = getSocket();
-  if (!s.connected) {
+  if (s && !s.connected) {
     s.connect();
   }
   return s;

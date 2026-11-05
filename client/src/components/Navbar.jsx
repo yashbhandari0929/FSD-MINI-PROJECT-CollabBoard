@@ -62,11 +62,56 @@ export default function Navbar({
             <span>Connecting</span>
           </span>
         );
+      case 'standalone':
+        return (
+          <span
+            className="badge badge-info"
+            style={{ cursor: 'pointer', background: '#3b82f6', color: '#fff' }}
+            title="Cloud Mode: Real-time Database & Snapshots synced to MongoDB Atlas. Click to configure a WebSocket server URL for multi-user sync."
+            onClick={() => {
+              const current = localStorage.getItem('collab_socket_url') || '';
+              const newUrl = window.prompt(
+                'Enter WebSocket Server URL for live multi-user sync (e.g. http://localhost:5005 or tunnel URL):',
+                current
+              );
+              if (newUrl !== null) {
+                if (newUrl.trim()) {
+                  localStorage.setItem('collab_socket_url', newUrl.trim());
+                } else {
+                  localStorage.removeItem('collab_socket_url');
+                }
+                window.location.reload();
+              }
+            }}
+          >
+            <span className="pulse-dot online" style={{ background: '#93c5fd' }} />
+            <span>Cloud (Atlas)</span>
+          </span>
+        );
       case 'error':
       case 'disconnected':
       default:
         return (
-          <span className="badge badge-danger" title="WebSocket disconnected.">
+          <span
+            className="badge badge-danger"
+            style={{ cursor: 'pointer' }}
+            title="WebSocket disconnected. Click to configure a server URL."
+            onClick={() => {
+              const current = localStorage.getItem('collab_socket_url') || '';
+              const newUrl = window.prompt(
+                'Enter WebSocket Server URL for live multi-user sync (e.g. http://localhost:5005 or tunnel URL):',
+                current
+              );
+              if (newUrl !== null) {
+                if (newUrl.trim()) {
+                  localStorage.setItem('collab_socket_url', newUrl.trim());
+                } else {
+                  localStorage.removeItem('collab_socket_url');
+                }
+                window.location.reload();
+              }
+            }}
+          >
             <span className="pulse-dot offline" />
             <span>Offline</span>
           </span>

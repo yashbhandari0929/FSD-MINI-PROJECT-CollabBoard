@@ -51,6 +51,11 @@ export function useSocket({
     const socket = connectSocket();
     socketRef.current = socket;
 
+    if (!socket) {
+      setConnectionStatus('standalone');
+      return;
+    }
+
     const handleConnect = () => {
       setConnectionStatus('connected');
       socket.emit('room:join', { roomId, userName }, (res) => {
@@ -64,8 +69,7 @@ export function useSocket({
       setConnectionStatus('disconnected');
     };
 
-    const handleConnectError = (err) => {
-      console.warn('[Socket Connect Error]:', err.message);
+    const handleConnectError = () => {
       setConnectionStatus('error');
     };
 
